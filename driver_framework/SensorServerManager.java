@@ -9,9 +9,7 @@ import java.io.*;
 import java.util.List;
 
 /**
- * class is used for client/server request/response management
- * @see ResponseManager
- * @see RequestManagerThread
+ * instance of this class is to be used by driver developer in order to start providing communicatino with Android device
  * */
 public class SensorServerManager extends Thread{
 
@@ -24,8 +22,8 @@ public class SensorServerManager extends Thread{
     }
 
     /**
-     * after everything is properly set up
-     * when starts executing it waits for requests and sends responses accordingly
+     * after everything is properly set up, call start() on SensorServerManager instance
+     * executing it waits for requests and sends responses accordingly
      * */
     @Override
     public void run() {

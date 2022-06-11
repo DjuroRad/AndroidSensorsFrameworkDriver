@@ -82,16 +82,20 @@ public class ResponseManager implements RequestObserver{
      * waits for data provider thread to disconnect ( stop reading ) !
      * */
     private void waitStopReading(){
-        dataProviderThread.stopReading();//data provider suspends itself
+        if( dataProviderThread != null )
+            dataProviderThread.stopReading();//data provider suspends itself
     }
 
     private void disconnectReading(){
-        dataProviderThread.disconnect();//stops writing data, disconnects from tied input stream
-        try {
-            dataProviderThread.join();//wait for disconnect confirmation from the thread
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+        if( dataProviderThread != null ){
+            dataProviderThread.disconnect();//stops writing data, disconnects from tied input stream
+            try {
+                dataProviderThread.join();//wait for disconnect confirmation from the thread
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
+
     }
 
 

@@ -72,7 +72,7 @@ public class DataProviderThread extends Thread{
             updateSleepTime(sleepTime);
 
             try {
-                System.out.println(" SAMPLE RATE SLEEPING " + sleepTime);
+//                System.out.println(" SAMPLE RATE SLEEPING " + sleepTime);
                 sleep(sleepTime);
             } catch (InterruptedException e) {
                 e.printStackTrace();

@@ -4,6 +4,10 @@ import arduino_simulator.SensorType;
 
 import static arduino_simulator.SensorType.isSensorDataDigital;
 
+/**
+ * If you want to define a new sensor for testing as driver developer extend this class
+ * when implementing it, pass appropriate sensor type to constructor. If sensor type not in the list of available sensor types, use custom sensor.
+ * */
 public abstract class SensorImpl implements Sensor {
 
     protected SensorType sensorType;
@@ -43,6 +47,9 @@ public abstract class SensorImpl implements Sensor {
         return null;
     }
 
+    /**
+     * returns sensor type
+     * */
     @Override
     public SensorType getSensorType() {
         return this.sensorType;

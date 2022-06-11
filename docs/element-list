@@ -1,0 +1,7 @@
+unnamed package
+arduino_simulator
+arduino_simulator.sensors
+bluetooth_connection_manager
+driver_framework
+driver_framework.request
+driver_framework.response

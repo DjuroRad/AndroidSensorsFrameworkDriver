@@ -8,7 +8,7 @@ public class PressureSensor extends SensorImpl{
         super(SensorType.PRESSURE_SENSOR_DIGITAL);
     }
 
-    /**
+    /*
      * will return null if data exception thrown while converting the int to the byte array
      * */
     @Override

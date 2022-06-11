@@ -5,6 +5,9 @@ import arduino_simulator.SensorType;
 
 import java.io.*;
 
+/**
+ * Use this class in order to achieve even more flexibility when implementing new testing sensors though using SensorImpl is recommended
+ * */
 public interface Sensor{
 
     /**

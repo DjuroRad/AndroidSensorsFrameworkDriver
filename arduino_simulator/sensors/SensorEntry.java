@@ -31,13 +31,20 @@ public class SensorEntry {
     private static final String TAG = "SensorEntry";
     private static final Logger logger = Logger.getLogger( TAG );
 
+    /**
+     * As driver developer use this class
+     *
+     * @param sensorType specify type of the sensor, if your sensor type is not in the list of available sensor types, use CUSTOM_SENSOR type
+     * @param sensorID specify id of each sensor you register
+     * @param dataSampleByteLength specify length from your sensor's data sample in bytes
+     * */
     public SensorEntry(SensorType sensorType, int sensorID, int dataSampleByteLength) {
         this.sensorType = sensorType;
         this.sensorID = sensorID;
         this.dataSampleByteLength = dataSampleByteLength;
     }
 
-    /***/
+    //maybe use later on
     public SensorEntry(SensorType sensorType, int sensorID, int dataSampleByteLength, int maxSampleRate, int minSampleRate) {
         this.sensorType = sensorType;
         this.sensorID = sensorID;

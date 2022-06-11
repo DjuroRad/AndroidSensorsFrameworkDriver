@@ -17,7 +17,7 @@ public enum SensorType {
     GYROSCOPE_TYPE((byte)14),
 
     PRESSURE_SENSOR_DIGITAL((byte)0b0011_0001),
-    SENSOR_CUSTOM_ANALOG((byte)0b1111_1111),
+    SENSOR_CUSTOM_ANALOG((byte)250),
     SENSOR_CUSTOM_DIGITAL((byte)0b1111_1110);
     private byte mByte;
     SensorType(byte mByte) {

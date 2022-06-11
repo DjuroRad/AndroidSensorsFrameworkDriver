@@ -10,7 +10,7 @@ public class LightSensor extends SensorImpl{
         super(LIGHT_SENSOR);
     }
 
-    /**
+    /*
      * will return null if data exception thrown while converting the int to the byte array
      * */
     @Override
@@ -22,7 +22,7 @@ public class LightSensor extends SensorImpl{
         return sensorDataByteArray;
     }
 
-    /**
+    /*
      * this way I can get ready data from the sensor itself though this is not the case in real life.
      * Driver framework should perform this conversion if they want to have it
      * */
