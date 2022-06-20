@@ -227,7 +227,6 @@ public class ResponseManager implements RequestObserver{
             if (sensorID == sensor.getSensorID()) {
                 responseType = Response.CONNECT_SENSOR_Y;//form a package and send it
                 sensor.setConnected(true);
-//                dataProviderThread.sensorConnected(sensorID);
                 isSensorConnected = true;
                 break;
             }
@@ -252,15 +251,11 @@ public class ResponseManager implements RequestObserver{
        byte[] sensorIdBytes = currentRequestPackage.getRequestBody();
        int sensorID = new BigInteger(sensorIdBytes).intValue();//get sensor id
 
-//       byte[] sampleRateConfiguration = currentRequestPackage.getAdditionalData();
-//       int newSampleRate = new BigInteger(sampleRateConfiguration).intValue();//get sample rate
-
        boolean id_exists = false;//check if given id requested for configuration exists
        for(SensorEntry sensor : availableSensors){
            if( sensor.getSensorID() == sensorID ) {
                id_exists = true;
                sensor.configureSensor( currentRequestPackage.getInputStream() );
-//               dataProviderThread.configureSensor(sensorID, sensor.getSampleRate());//update sample rate in data provider
                break;
            }
        }
@@ -271,9 +266,6 @@ public class ResponseManager implements RequestObserver{
            currentResponsePackage = new ResponsePackage(Response.CONFIGURE_N, currentRequestPackage.getRequestBody());
 
     }
-
-
-
 
     private void disconnectResponse(){
         synchronized (dataProviderThread){

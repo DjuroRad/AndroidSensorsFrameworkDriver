@@ -5,20 +5,15 @@ public enum SensorType {
     ACCELEROMETER((byte)0b0001_0000),
     LIGHT_SENSOR((byte)0b0010_0000),
     PRESSURE_SENSOR((byte)0b0011_0000),
-
     PROXIMITY_SENSOR((byte)10),
-
     TEMPERATURE_SENSOR((byte)11),
-
     RELATIVE_HUMIDITY_SENSOR((byte)12),
-
     ORIENTATION_SENSOR((byte)13),
-
     GYROSCOPE_TYPE((byte)14),
-
     PRESSURE_SENSOR_DIGITAL((byte)0b0011_0001),
     SENSOR_CUSTOM_ANALOG((byte)250),
     SENSOR_CUSTOM_DIGITAL((byte)0b1111_1110);
+
     private byte mByte;
     SensorType(byte mByte) {
         this.mByte = mByte;

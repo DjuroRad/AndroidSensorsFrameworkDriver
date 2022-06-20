@@ -28,7 +28,6 @@ public class ArduinoSimulator extends Thread implements ArduinoSimulatorInterfac
     private int baud = -1;
     private PipedInputStream pipedInputStream = null;//sensor input stream
     private PipedOutputStream pipedOutputStream = null;//sensor output stream
-//    private Sensor sensor = null;
     private List<Sensor> sensors = null;
 
     volatile private LinkedList<LinkedList<byte[]>> sensorDataList = new LinkedList<LinkedList<byte[]>>();
