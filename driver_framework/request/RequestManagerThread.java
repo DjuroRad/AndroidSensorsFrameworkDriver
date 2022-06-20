@@ -82,5 +82,4 @@ public class RequestManagerThread extends Thread{
                 requestObserver.onRequestArrived(currentRequestPackage);
         }
     }
-
 }

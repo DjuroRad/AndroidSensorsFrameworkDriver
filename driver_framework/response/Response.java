@@ -126,7 +126,12 @@ public enum Response {
      * Informs that reading is in progress, and sends read data along with it. # of bytes read / written depends on sensor's data type, or configuration
      * Response = | READING_SENSOR_DATA | x, x, x, x, ... , n^th 'x' byte |
      * */
-    READING_SENSOR_DATA((byte) 0b1111_1111),
+    READING_SENSOR_DATA((byte) 255),
+
+    /**
+     * same as READING_SENSOR_DATA, though additionally it also reads the formatted data!
+     */
+    READING_SENSOR_DATA_FORMATTED((byte)254),
 
     /**
      * Request = 'ANY'

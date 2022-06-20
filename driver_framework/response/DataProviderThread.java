@@ -16,6 +16,8 @@ public class DataProviderThread extends Thread{
     private OutputStream clientOutputStream = null;
     private InputStream sensorInputStream = null;
     List<SensorEntry> availableSensors;//needed for sending data
+
+    byte[][] prevRawData;//track previous raw data samples
     private HashMap<Integer, SampleRateTracker> availableSensorsSampleRate;
     private int n_bytes_total;
 
@@ -33,12 +35,13 @@ public class DataProviderThread extends Thread{
         this.availableSensors = availableSensors;
         this.generalSampleRate = generalSampleRate;
 
+        prevRawData = new byte[availableSensors.size()][0];
         this.availableSensorsSampleRate = new HashMap<>();
 
         n_bytes_total = 0;
         for( SensorEntry sensor: availableSensors ) {
             n_bytes_total += sensor.getDataSampleByteLength();
-            availableSensorsSampleRate.put(sensor.getSensorID(), new SampleRateTracker(generalSampleRate));
+            availableSensorsSampleRate.put(sensor.getSensorID(), new SampleRateTracker(sensor.getSampleRate()));
         }
     }
 
@@ -61,10 +64,12 @@ public class DataProviderThread extends Thread{
             }
 
             int offset_all_raw_data = 0;
+            int i = 0;
             for( SensorEntry sensor : availableSensors ){
-                if( sensor.isConnected() && availableSensorsSampleRate.get( sensor.getSensorID() ).isAwake() )//write data if sensor is CONNECTED and AWAKE!
-                    writeSensorData(sensor, all_sensors_raw_data, offset_all_raw_data);
-
+                if( sensor.isConnected() && availableSensorsSampleRate.get( sensor.getSensorID() ).isAwake() ) {//write data if sensor is CONNECTED and AWAKE!
+                    writeSensorData(sensor, i, all_sensors_raw_data, offset_all_raw_data);
+                }
+                ++i;
                 offset_all_raw_data += sensor.getDataSampleByteLength();//always move the offset!
             }
 
@@ -72,7 +77,6 @@ public class DataProviderThread extends Thread{
             updateSleepTime(sleepTime);
 
             try {
-//                System.out.println(" SAMPLE RATE SLEEPING " + sleepTime);
                 sleep(sleepTime);
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -87,46 +91,73 @@ public class DataProviderThread extends Thread{
                         e.printStackTrace();
                     }
                 }
-
             }
         }
-
     }
 
     /**
      * 1. get external sensor's data sample
      * 2. write response type ---> READING_SENSOR_DATA
      * 3. write sensor id
-     * 4. write data sample
+     * -> if data not changed and precision is set to be imprecise -> don't write it, just return
+     * 4. write raw data sample
+     * 5. if formatted, write formatted string's length
+     * 6. if formatted, write formatted string
      * */
-    private void writeSensorData(SensorEntry sensor, byte[] all_sensors_raw_data, int offset_all_raw_data) {
-        //write SENSOR TYPE  --- removed as far as I can see
-        //write sensor ID ( just id actually )
-        //write # bytes as additional data
 
-        byte[] data_sample = new byte[sensor.getDataSampleByteLength()];
+    private void writeSensorData(SensorEntry sensor, int sensor_i, byte[] all_sensors_raw_data, int offset_all_raw_data) {
 
-        //data sample bytes
-        for( int i = 0; i<sensor.getDataSampleByteLength(); ++i )
-            data_sample[i] = all_sensors_raw_data[i+offset_all_raw_data];
+        Response responseType = Response.READING_SENSOR_DATA;
+        byte[] sensorIdBytes = ByteBuffer.allocate(4).putInt(sensor.getSensorID()).array();//write sensor ID ( just id actually )
+        byte[] raw_data_sample = new byte[sensor.getDataSampleByteLength()];//write # bytes as additional data of raw data
 
-        //id bytes
-        byte[] sensorIdBytes = ByteBuffer.allocate(4).putInt(sensor.getSensorID()).array();
+        for( int i = 0; i<sensor.getDataSampleByteLength(); ++i )//extract raw data of given sensor from all sensors' raw data
+            raw_data_sample[i] = all_sensors_raw_data[i+offset_all_raw_data];
 
-        ResponsePackage responsePackage = new ResponsePackage(Response.READING_SENSOR_DATA, sensorIdBytes, data_sample);//write response
+        if(!sensor.dataChanged( raw_data_sample, prevRawData[sensor_i])) return;//if there is no data change ( depends on precision also, check the implementation
+        else setPrevRawData(raw_data_sample, sensor_i);
 
+
+        byte[] rawLengthString = new byte[0];
+        byte[] rawString = new byte[0];
+
+
+        if(sensor.isFormatted()){//get formatted data if sensor is configured for formatting.
+            String formattedDataAsString = sensor.formatRawData(raw_data_sample).toJSONString();
+            rawLengthString = ByteBuffer.allocate(4).putInt(formattedDataAsString.length()).array();//write length of formatted data
+            rawString = formattedDataAsString.getBytes();//write formatted data's string
+            responseType = Response.READING_SENSOR_DATA_FORMATTED;//update response!
+        }
+
+        //sets up the additional data
+        int n_total = raw_data_sample.length + rawLengthString.length + rawString.length;
+        byte[] additional_data = new byte[n_total];
+
+        int i = 0;
+        for( ; i<raw_data_sample.length; ++i )//copy raw data
+            additional_data[i] = raw_data_sample[i];
+
+        for( ; i<raw_data_sample.length + rawLengthString.length; ++i )//copy formatted string's length
+            additional_data[i] = rawLengthString[i-raw_data_sample.length];
+
+        for( ; i<rawLengthString.length + rawLengthString.length + rawString.length; ++i )//copy formatted string
+            additional_data[i] = rawString[i-(raw_data_sample.length + rawLengthString.length)];
+
+        ResponsePackage responsePackage = new ResponsePackage(responseType, sensorIdBytes, additional_data);//write response
         responsePackage.sendResponse(clientOutputStream);
     }
 
-    public void configureSensor(int sensorID, int sampleRate){
-        if( sensorID == -1 ){//update all sensors' sample rate
-            for( Map.Entry<Integer, SampleRateTracker> entry : availableSensorsSampleRate.entrySet() )
-                availableSensorsSampleRate.replace( entry.getKey(), new SampleRateTracker(sampleRate) );
-        }else//update single sensor's sample rate
-            availableSensorsSampleRate.replace( sensorID, new SampleRateTracker(sampleRate) );
+    private void setPrevRawData(byte[] raw_data_sample, int sensor_i) {
+        prevRawData[sensor_i] = new byte[raw_data_sample.length];
+
+        for( int i = 0; i<raw_data_sample.length; ++i )
+            prevRawData[sensor_i][i] = raw_data_sample[i];
+
     }
+
     public void disconnect(){
         writingData = false;
+        readingStopped = false;
     }
 
     public void stopReading(){
@@ -210,20 +241,3 @@ public class DataProviderThread extends Thread{
         }
     }
 }
-
-
-////            byte[] extendedResponse = new byte[ResponsePackage.RESPONSE_BODY_SIZE + ResponsePackage.RESPONSE_HEADER_SIZE + nBytes];
-////
-////            for( int i = 0; i<buffer.length; ++i )
-////                extendedResponse[ResponsePackage.RESPONSE_BODY_SIZE + ResponsePackage.RESPONSE_HEADER_SIZE + i] = buffer[i];
-////
-////            extendedResponse[0] = responsePackage.getResponseTypeByte();
-////            for( int i = 0; i<ResponsePackage.RESPONSE_BODY_SIZE; ++i )
-////                extendedResponse[i+1] = responsePackage.getResponseBody()[i];
-//
-////
-////            clientOutputStream.write(extendedResponse);
-////            clientOutputStream.flush();//wait for data to be read and only after that get new data from the stream
-//        } catch (IOException e) {
-//            e.printStackTrace();
-//        }
