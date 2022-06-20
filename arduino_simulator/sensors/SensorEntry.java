@@ -10,7 +10,9 @@ import java.util.logging.Logger;
 
 /**
  * class contains basic sensor's requirements for functioning, its limitations and similary, basically it is kind of metadata for sensor
- * part of this data is shared on the initial handshake performed when we connect to the device driver
+ * part of this data is shared on the initial handshake performed when we connect to the device driver. Device developer is in charge of implementing abstract methods: <br> <br>
+ * public abstract JSONObject formatRawData(byte[] rawData);
+ * public abstract Object[] getSensorValue(byte[] rawData);
  * */
 public abstract class SensorEntry {
 
