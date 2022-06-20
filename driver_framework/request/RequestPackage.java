@@ -6,10 +6,12 @@ import java.io.InputStream;
 public class RequestPackage {
     private byte[] requestBody = new byte[REQUEST_BODY_SIZE];
     private byte requestTypeByte;//used to represent request header
-    private byte[] requestAdditionalData = new byte[CONFIGURE_ADDITIONAL_DATA];
+//    private byte[] requestAdditionalData = new byte[CONFIGURE_ADDITIONAL_DATA];
     private Request requestType = null;
 
+    private InputStream inputStream;
     public void getRequestPackage(InputStream inputStream) {
+        this.inputStream = inputStream;
         try {
             int requestTypeInt = inputStream.read();
             if( requestTypeInt == -1 )
@@ -20,7 +22,7 @@ public class RequestPackage {
                 int requestBodyLength = inputStream.read(requestBody,0,REQUEST_BODY_SIZE);
                 if( requestBodyLength != 4 )
                     throw new IOException("RequestType reading: Data read from input stream is -1");
-                getAdditionalData(inputStream);//gets additional data if it exists for a given command
+//                getAdditionalData(inputStream);//gets additional data if it exists for a given command
             }
 
         } catch (IOException e) {
@@ -28,27 +30,30 @@ public class RequestPackage {
         }
     }
 
-
-    private static final int CONFIGURE_ADDITIONAL_DATA = 4;//integer pointing out the sample rate in ms
-
-    private void getAdditionalData(InputStream inputStream){
-        switch (requestType){
-            case CONFIGURE:
-                try {
-
-                    int readBytes = inputStream.read(requestAdditionalData,0,CONFIGURE_ADDITIONAL_DATA);
-                    if( readBytes == -1 )
-                        throw new IOException("Reading additional data for CONFIGURE request ended up returning -1\n");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                break;
-        }
+    public InputStream getInputStream() {
+        return inputStream;
     }
+
+    //    private static final int CONFIGURE_ADDITIONAL_DATA = 4;//integer pointing out the sample rate in ms
+
+//    private void getAdditionalData(InputStream inputStream){
+//        switch (requestType){
+//            case CONFIGURE:
+//                try {
+//
+//                    int readBytes = inputStream.read(requestAdditionalData,0,CONFIGURE_ADDITIONAL_DATA);
+//                    if( readBytes == -1 )
+//                        throw new IOException("Reading additional data for CONFIGURE request ended up returning -1\n");
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//                break;
+//        }
+//    }
     public byte[] getRequestBody() {
         return requestBody;
     }
-    public byte[] getAdditionalData(){ return requestAdditionalData; }
+//    public byte[] getAdditionalData(){ return requestAdditionalData; }
     public byte getRequestTypeByte() {
         return requestTypeByte;
     }

@@ -59,7 +59,6 @@ public class ResponseManager implements RequestObserver{
         this.outputStreamClient = outputStreamClient;
         this.inputStreamSensor = inputStreamSensor;
         this.availableSensors = availableSensors;
-//        this.providedSensorType = providedSensorType;
     }
     /**
      * observer's method is triggered here as soon as data arrives
@@ -75,7 +74,8 @@ public class ResponseManager implements RequestObserver{
     public void onSubjectFinished() {
         this.clientConnected = false;
         this.isSensorConnected = false;
-        waitStopReading();
+        if( dataProviderThread != null )
+            dataProviderThread.disconnect();
     }
 
     /**
@@ -139,6 +139,7 @@ public class ResponseManager implements RequestObserver{
 
         if( this.currentResponsePackage.responseType == Response.START_READ_Y )
             startReadingThread();
+
         this.currentResponsePackage = null;
     }
 
@@ -158,7 +159,7 @@ public class ResponseManager implements RequestObserver{
             byte[] sizeBytes = ByteBuffer.allocate(4).putInt(availableSensors.size()).array();
 
             //set up additional data
-            byte[] additionalData = new byte[availableSensors.size() * SENSOR_ENTRY_BYTE_LENGTH];
+            byte[] additionalData = new byte[availableSensors.size() * SENSOR_ENTRY_BYTE_LENGTH];//+ 4 + 4 - 2 additional integer values for MIN and MAX
             for( int i = 0; i<availableSensors.size(); ++i ){//set sensor type, sensor id, n length
                 SensorType sensorType = availableSensors.get(i).getSensorType();
                 int sensorID = availableSensors.get(i).getSensorID();
@@ -170,10 +171,18 @@ public class ResponseManager implements RequestObserver{
 
                 additionalData[i*SENSOR_ENTRY_BYTE_LENGTH] = sensorTypeByte;
                 for( int j = 1; j<5; ++j )
-                    additionalData[i*SENSOR_ENTRY_BYTE_LENGTH+j] = sensorIdBytes[j-1];
+                    additionalData[i*SENSOR_ENTRY_BYTE_LENGTH+j] = sensorIdBytes[j-1];//send sensor's id
 
-                for( int j = 5; j<SENSOR_ENTRY_BYTE_LENGTH; ++j )
-                    additionalData[i*SENSOR_ENTRY_BYTE_LENGTH+j] = dataSampleLengthBytes[j-5];
+                for( int j = 5; j<9; ++j )
+                    additionalData[i*SENSOR_ENTRY_BYTE_LENGTH+j] = dataSampleLengthBytes[j-5];//send length of its byte
+
+                byte[] minValueBytes = ByteBuffer.allocate(4).putInt(availableSensors.get(i).getMinValue()).array();
+                for( int j = 9; j<13; ++j )//send minimum value
+                    additionalData[i*SENSOR_ENTRY_BYTE_LENGTH+j] = minValueBytes[j-9];//send sensor's id
+
+                byte[] maxValueBytes = ByteBuffer.allocate(4).putInt(availableSensors.get(i).getMaxValue()).array();
+                for( int j = 13; j<SENSOR_ENTRY_BYTE_LENGTH; ++j )//send maximum value
+                    additionalData[i*SENSOR_ENTRY_BYTE_LENGTH+j] = maxValueBytes[j-13];//send length of its byte
             }
             currentResponsePackage = new ResponsePackage(Response.CONNECT_Y, sizeBytes, additionalData);
 
@@ -183,7 +192,6 @@ public class ResponseManager implements RequestObserver{
             byte[] generalSampleRateBytes = currentRequestPackage.getRequestBody();
             int generalSampleRate = new BigInteger(generalSampleRateBytes).intValue();
             this.generalSampleRateSensors = generalSampleRate;
-            dataProviderThread = new DataProviderThread(outputStreamClient, inputStreamSensor, availableSensors, generalSampleRate);
         }
     }
 
@@ -219,7 +227,7 @@ public class ResponseManager implements RequestObserver{
             if (sensorID == sensor.getSensorID()) {
                 responseType = Response.CONNECT_SENSOR_Y;//form a package and send it
                 sensor.setConnected(true);
-                dataProviderThread.sensorConnected(sensorID);
+//                dataProviderThread.sensorConnected(sensorID);
                 isSensorConnected = true;
                 break;
             }
@@ -242,15 +250,17 @@ public class ResponseManager implements RequestObserver{
 
        currentResponsePackage = new ResponsePackage(Response.CONFIGURE_Y, currentRequestPackage.getRequestBody());
        byte[] sensorIdBytes = currentRequestPackage.getRequestBody();
-       byte[] sampleRateConfiguration = currentRequestPackage.getAdditionalData();
        int sensorID = new BigInteger(sensorIdBytes).intValue();//get sensor id
-       int newSampleRate = new BigInteger(sampleRateConfiguration).intValue();//get sample rate
+
+//       byte[] sampleRateConfiguration = currentRequestPackage.getAdditionalData();
+//       int newSampleRate = new BigInteger(sampleRateConfiguration).intValue();//get sample rate
 
        boolean id_exists = false;//check if given id requested for configuration exists
        for(SensorEntry sensor : availableSensors){
            if( sensor.getSensorID() == sensorID ) {
-               id_exists = newSampleRate >= sensor.getMIN_SAMPLE_RATE() && newSampleRate <= sensor.getMAX_SAMPLE_RATE();//response should be negative when new sample rate is not within boundaries, so just fake its inexistence
-               if (id_exists) dataProviderThread.configureSensor(sensorID, newSampleRate);
+               id_exists = true;
+               sensor.configureSensor( currentRequestPackage.getInputStream() );
+//               dataProviderThread.configureSensor(sensorID, sensor.getSampleRate());//update sample rate in data provider
                break;
            }
        }
@@ -262,6 +272,9 @@ public class ResponseManager implements RequestObserver{
 
     }
 
+
+
+
     private void disconnectResponse(){
         synchronized (dataProviderThread){
             if( dataProviderThread.getState() == Thread.State.WAITING )
@@ -269,7 +282,6 @@ public class ResponseManager implements RequestObserver{
         }
 
         dataProviderThread.disconnect();
-        dataProviderThread = null;
     }
 
     private void disconnectSensorResponse() {
@@ -290,21 +302,6 @@ public class ResponseManager implements RequestObserver{
         }
 
         currentResponsePackage = new ResponsePackage(responseType, currentRequestPackage.getRequestBody());
-        //independent response
-//        SensorType requestedSensorType = getSensorTypeFromRequestPackage(currentRequestPackage);
-//        Response responseType = null;
-//
-//        responseType = (Response.CONNECT_SENSOR_N);//assume not present
-//
-//        for( SensorEntry sensor: availableSensors ){//change assumption if you find a contradiction
-//            if( requestedSensorType == sensor.getSensorType() ) {
-//                responseType = Response.CONNECT_SENSOR_Y;//form a package and send it
-//                isSensorConnected = true;
-//            }
-//        }
-//
-//        currentResponsePackage = new ResponsePackage(responseType, currentRequestPackage.getRequestBody());
-
     }
 
     //1. check if sensor with specified id exists
@@ -340,6 +337,7 @@ public class ResponseManager implements RequestObserver{
     private void startReadResponse() {//if handshake done you can start reading now
         if( isSensorConnected ){
             currentResponsePackage = new ResponsePackage( Response.START_READ_Y);
+            dataProviderThread = new DataProviderThread(outputStreamClient, inputStreamSensor, availableSensors, generalSampleRateSensors);
         }else //if sensor is not / has not previously been connected send an invalid request response
             currentResponsePackage = new ResponsePackage(Response.START_READ_N);
     }
@@ -357,117 +355,4 @@ public class ResponseManager implements RequestObserver{
         else
             currentResponsePackage = new ResponsePackage(Response.STOP_READ_N);
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//    //useless
-//    /**
-//     * when data is set to be read ->
-//     * this requires an operation of a thread to do it in background so that ServerResponse can continue listening for requests at the same time!
-//     * otherwise, stopping the reading would be impossible
-//     * */
-//    private static class SensorReadThread extends Thread{
-//        private static final String TAG = "SensorReadThread";
-//
-//        private InputStream inputStreamSensor = null;
-//        private OutputStream outputStreamClient = null;
-//
-//        private boolean readingSensorData = true;
-//
-//        SensorReadThread(InputStream inputStream, OutputStream outputStreamClient){
-//            this.inputStreamSensor = inputStream;
-//            this.outputStreamClient = outputStreamClient;
-//        }
-//
-//        public void stopReading(){
-//            readingSensorData = false;
-//        }
-//
-//        /**
-//         * whenever data written to output stream, even when data is being sent
-//         * client first looks at the response
-//         * because of this we need to append the response to data sent so that client would know that data is currently being read from the sensor.
-//         * @param byteArrayRead data read from sensor in bytes
-//         * @param nBytesRead number of bytes sensor read
-//         * @return byte[] - Returns byteArrayRead with Response.READING_SENSOR_DATA appended to it as first byte of the array.
-//         * */
-//        private byte[] appendResponse(byte[] byteArrayRead, int nBytesRead) {
-//            byte[] sensorDataWithResponse = new byte[nBytesRead + 1];
-//            sensorDataWithResponse[0] = Response.READING_SENSOR_DATA.getValue();
-//            for(int i = 0; i<nBytesRead; ++i)
-//                sensorDataWithResponse[i+1] = byteArrayRead[i];
-//
-//            return sensorDataWithResponse;
-//        }
-//
-//        /**
-//         * gets data from the sensor
-//         * @return number of bytes read from the sensor
-//         * */
-//        private int getSensorData(byte[] sensorData){
-//            try {
-//                int numberOfBytesRead = inputStreamSensor.read(sensorData);
-//                if( numberOfBytesRead == -1 )
-//                    throw new IOException("Input Stream returned -1");
-//
-//                return numberOfBytesRead;
-//
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//                System.out.println(TAG + ": IOException while reading data from sensor -> Message: " + e.getMessage());
-//            }
-//            return 0;
-//        }
-//
-//        /**
-//         * send data read from the sensor to client by writing it to client's output stream
-//         * @param sensorData array of bytes representing sensor's data
-//         * @param nBytesToSend number that should be consistent
-//         * */
-//        private void sendSensorDataToClient(byte[] sensorData, int nBytesToSend){
-//            try {
-//                outputStreamClient.write(Arrays.copyOfRange( sensorData, 0, nBytesToSend));
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//                System.out.println(TAG + ": IOException while sending sensor data to client -> Message: " + e.getMessage());
-//            }
-//        }
-//
-//        /**
-//         * send data read from the sensor to client by writing it to client's output stream
-//         * @param sensorDataWithResponse sensor data as array of bytes. Response should be appended as first byte
-//         * */
-//        private void sendSensorDataToClient(byte[] sensorDataWithResponse){
-//            try {
-//                outputStreamClient.write( sensorDataWithResponse );
-//            } catch (IOException e) {
-//                e.printStackTrace();
-//                System.out.println(TAG + ": IOException while sending sensor data to client -> Message: " + e.getMessage());
-//            }
-//        }
-//    }
 }
